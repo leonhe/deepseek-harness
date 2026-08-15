@@ -53,7 +53,9 @@ jobs:
         include:
           - arch: arm64
             runner: macos-14
-            script: dist:mac:arm64
+            # electron-builder runs directly (not via npm scripts): npm lifecycle
+            # predist hooks would re-run bundle-host inside the temp copy.
+            builder: ./node_modules/.bin/electron-builder --mac --arm64
             bundle: true
           # x64 is cross-compiled on the arm64 runner (electron-builder
           # --x64): Intel macOS runners (macos-13) are in chronic capacity
@@ -62,7 +64,7 @@ jobs:
           # modules (npmRebuild: false), so the cross-build is safe.
           - arch: x64
             runner: macos-14
-            script: dist:mac:x64
+            builder: ./node_modules/.bin/electron-builder --mac --x64
     steps:
       - uses: actions/checkout@v6
 
@@ -95,7 +97,7 @@ jobs:
             desktop/ "$build_dir/"
           cd "$build_dir"
           npm ci --no-audit --no-fund
-          npm run ${{ matrix.script }}
+          ${{ matrix.builder }}
 
       - uses: actions/upload-artifact@v4
         with:

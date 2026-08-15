@@ -15,11 +15,13 @@ files:
 # tree. ARM-only: the runtime carries per-arch native deps (node-pty, sharp),
 # so the x64 job skips bundling and the shell falls back to a nearby checkout.
 extraResources:
-  # from stage (not stage/runtime): electron-builder's copy filter drops a
-  # root-level node_modules of the copied tree, and the runtime's dependencies
-  # live exactly there; one level up keeps them under runtime/node_modules.
-  # No `to`: the stage tree (only runtime/ inside) expands into Resources/.
-  - from: stage
+  # ${arch} resolves per build: arm64 embeds stage/runtime-arm64 into
+  # Resources/runtime; x64 finds no source and silently ships shell-only.
+  # The from points at the arch dir (not the stage root) so the runtime's
+  # root-level node_modules survives electron-builder's copy filter, which
+  # drops a root-level node_modules of the copied tree.
+  - from: stage/runtime-${arch}
+    to: runtime
 npmRebuild: false
 mac:
   # App icon: web favicon mark (apps/web/public/favicon.svg), synced per

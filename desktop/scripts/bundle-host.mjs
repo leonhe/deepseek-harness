@@ -18,7 +18,10 @@ import { fileURLToPath } from 'node:url'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(HERE, '..', '..')
-const RUNTIME = join(REPO_ROOT, 'desktop', 'stage', 'runtime')
+// Arm64-only by name: the packaged runtime carries per-arch natives, and
+// electron-builder's extraResources resolves stage/runtime-${arch} so the
+// x64 shell skips it (missing source = warning, not embedding an arm64 tree).
+const RUNTIME = join(REPO_ROOT, 'desktop', 'stage', 'runtime-arm64')
 const PRUNE = process.env.DSH_BUNDLE_PRUNE !== '0'
 
 /** .pnpm store entries pruned as dev-infrastructure when DSH_BUNDLE_PRUNE=1. */
