@@ -99,7 +99,13 @@ jobs:
           npm ci --no-audit --no-fund
           ${{ matrix.builder }}
 
-      - uses: actions/upload-artifact@v4
+      # Archives only: the unpacked .app contains the runtime's tens of
+      # thousands of files, and upload-artifact's Node archiver OOMs (default
+      # 2 GB V8 heap) zipping a tree that size. The .dmg/.zip carry the app.
+      - name: Upload packaged artifacts
+        uses: actions/upload-artifact@v4
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         with:
           name: dsh-desktop-macos-${{ matrix.arch }}-${{ github.sha }}
           if-no-files-found: error
@@ -107,7 +113,6 @@ jobs:
             ${{ runner.temp }}/desktop-build/dist/*.dmg
             ${{ runner.temp }}/desktop-build/dist/*.zip
             ${{ runner.temp }}/desktop-build/dist/*.blockmap
-            ${{ runner.temp }}/desktop-build/dist/mac*/
 
   release:
     name: Attach artifacts to release
