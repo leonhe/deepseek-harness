@@ -17,7 +17,8 @@
  * loading dist over file:// with fetch over an IPC bridge; this POC does not
  * implement that bridge and is explicitly the interim HTTP route.
  */
-import { existsSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, dialog, shell } from 'electron'
 import { hostCommand, resolveHostNode, startHost, stopHost } from './host.js'
@@ -40,6 +41,20 @@ function fail(message) {
   console.error('[shell] ' + message)
   if (!SMOKE) dialog.showErrorBox('DeepSeek Harness', message)
   app.exit(1)
+}
+
+/** ~/Library/Logs/<app>/host.log — full host output for failure diagnosis. */
+function hostLogPath() {
+  return join(app.getPath('logs'), 'host.log')
+}
+
+function persistHostLog(hostOutput) {
+  try {
+    mkdirSync(app.getPath('logs'), { recursive: true })
+    writeFileSync(hostLogPath(), hostOutput)
+  } catch (error) {
+    console.error('[shell] host log write failed: ' + error.message)
+  }
 }
 
 function createWindow(url) {
@@ -95,7 +110,8 @@ if (!gotLock) {
         if (quitting || windowClosed) return
         const trace = started.lastLines()
         console.error('[shell] host exited unexpectedly (code=' + code + ' signal=' + signal + ')' + (trace === '' ? '' : ': ' + trace))
-        fail('host exited unexpectedly (code=' + code + ' signal=' + signal + ')' + (trace === '' ? '' : '\n\nHost output:\n' + trace) + '\n\nthe app will close')
+        persistHostLog(started.dump())
+        fail('host exited unexpectedly (code=' + code + ' signal=' + signal + ')' + (trace === '' ? '' : '\n\nHost output (full log at ' + hostLogPath() + '):\n' + trace) + '\n\nthe app will close')
       })
       const url = await started.url
       console.log('[shell] host ready at ' + url)
