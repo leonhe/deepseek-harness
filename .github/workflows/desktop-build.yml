@@ -1,0 +1,99 @@
+name: Build macOS desktop client
+
+# Packages the dsh-desktop-poc Electron shell (desktop/) into .app/.dmg/.zip
+# for both macOS architectures. Triggers: master pushes and pull requests that
+# touch desktop/, manual dispatch, and desktop-v* tags (tag runs additionally
+# attach the artifacts to the GitHub Release).
+#
+# The build runs in a copy outside the repository checkout on purpose:
+# electron-builder walks up from the project dir for a parent workspace and
+# the repo root is a pnpm workspace (packageManager field + workspaces
+# declaration survive both detection passes), which selects pnpm's dependency
+# collector even though desktop/ is npm-installed by design (see
+# desktop/README.md). A temp-dir copy escapes the detection and uses the npm
+# collector that matches the install. Verified against electron-builder 26.
+#
+# Artifacts are unsigned and unnotarized (sign: false / notarize: false in
+# electron-builder.yml); distributing them outside the repo needs signing +
+# notarization per desktop/README.md (打包 .app / .dmg).
+
+on:
+  push:
+    branches: [master]
+    tags: ['desktop-v*']
+    paths: ['desktop/**']
+  pull_request:
+    paths: ['desktop/**']
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Harness engines: ^22.19 || >=24 (root package.json).
+  NODE_VERSION: '24'
+
+jobs:
+  build:
+    name: macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-14
+            script: dist:mac:arm64
+          - arch: x64
+            runner: macos-13
+            script: dist:mac
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Build in a workspace-free copy
+        run: |
+          set -euo pipefail
+          build_dir="$RUNNER_TEMP/desktop-build"
+          rm -rf "$build_dir" && mkdir -p "$build_dir"
+          rsync -a --exclude '/.git' --exclude '/dist' --exclude '/node_modules' \
+            --exclude '/.smoke-home' --exclude '/.electron-cache' --exclude '/npm-cache' \
+            desktop/ "$build_dir/"
+          cd "$build_dir"
+          npm ci --no-audit --no-fund
+          npm run ${{ matrix.script }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dsh-desktop-macos-${{ matrix.arch }}-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/desktop-build/dist/*.dmg
+            ${{ runner.temp }}/desktop-build/dist/*.zip
+            ${{ runner.temp }}/desktop-build/dist/*.blockmap
+            ${{ runner.temp }}/desktop-build/dist/mac*/
+
+  release:
+    name: Attach artifacts to release
+    if: startsWith(github.ref, 'refs/tags/desktop-')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
