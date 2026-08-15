@@ -96,4 +96,10 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*
+          # Archives only: the merged artifact set also contains the unpacked
+          # .app bundles from dist/mac*/, and gh release upload refuses
+          # directories.
+          files: |
+            artifacts/*.dmg
+            artifacts/*.zip
+            artifacts/*.blockmap
