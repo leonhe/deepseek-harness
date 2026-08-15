@@ -82,8 +82,9 @@ if (!gotLock) {
       child = started.child
       child.on('exit', (code, signal) => {
         if (quitting || windowClosed) return
-        console.error('[shell] host exited unexpectedly (code=' + code + ' signal=' + signal + ')')
-        fail('host exited unexpectedly (code=' + code + ' signal=' + signal + '); the app will close')
+        const trace = started.lastLines()
+        console.error('[shell] host exited unexpectedly (code=' + code + ' signal=' + signal + ')' + (trace === '' ? '' : ': ' + trace))
+        fail('host exited unexpectedly (code=' + code + ' signal=' + signal + ')' + (trace === '' ? '' : '\n\nHost output:\n' + trace) + '\n\nthe app will close')
       })
       const url = await started.url
       console.log('[shell] host ready at ' + url)

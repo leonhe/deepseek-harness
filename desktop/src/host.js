@@ -205,13 +205,16 @@ export function startHost(nodeBin, onLine) {
   }
   child.stdout.on('data', (c) => feed(String(c)))
   child.stderr.on('data', (c) => feed(String(c)))
+  /** The last host output lines; the shell includes them in exit reports. */
+  const lastLines = () => lines.slice(-5).join(' | ')
   const url = new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       reject(new Error('host did not print its URL within ' + HOST_TIMEOUT_MS + ' ms; last lines: ' + lines.slice(-5).join(' | ')))
     }, HOST_TIMEOUT_MS)
     child.on('exit', (code, signal) => {
       clearTimeout(timer)
-      reject(new Error('host exited before readiness (code=' + code + ' signal=' + signal + ')'))
+      const trace = lines.slice(-5).join(' | ')
+      reject(new Error('host exited before readiness (code=' + code + ' signal=' + signal + ')' + (trace === '' ? '' : ': ' + trace)))
     })
     // Readiness is decided on completed lines; a trailing chunk without a
     // newline cannot be the URL line (the host always ends it with \n).
@@ -226,7 +229,7 @@ export function startHost(nodeBin, onLine) {
       }
     })
   })
-  return { child, url }
+  return { child, url, lastLines }
 }
 
 /**

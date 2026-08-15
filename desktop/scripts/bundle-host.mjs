@@ -27,8 +27,8 @@ const DEV_ONLY_PREFIXES = [
   '@types/', '@vitest', '@vitejs', '@mermaid-js', '@openai+codex',
   '@anthropic-ai+claude-agent-sdk', '@playwright',
   'vite', 'vitest', 'eslint', 'oxlint', 'prettier', 'playwright', 'lefthook',
-  'knip', 'publint', 'tsx', 'jsdom', 'happy-dom', 'rollup', 'typescript',
-  'mermaid', 'tsdown', 'rolldown', 'js-yaml', 'lightningcss', 'sass',
+  'knip', 'publint', 'tsx', 'jsdom', 'happy-dom', 'rollup',
+  'mermaid', 'tsdown', 'rolldown', 'lightningcss', 'sass',
   'postcss', '@stylistic', 'storybook', 'concurrently',
 ]
 
