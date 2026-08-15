@@ -9,7 +9,8 @@
     "start": "electron .",
     "smoke": "DSH_DESKTOP_SMOKE=1 electron .",
     "dist:mac": "electron-builder --mac",
-    "dist:mac:arm64": "electron-builder --mac --arm64"
+    "dist:mac:arm64": "electron-builder --mac --arm64",
+    "dist:mac:x64": "electron-builder --mac --x64"
   },
   "devDependencies": {
     "electron": "^42.2.0",

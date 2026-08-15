@@ -81,7 +81,7 @@ git tag desktop-v0.1.0 && git push origin desktop-v0.1.0
 
 说明：
 
-- runner 映射：arm64 用 `macos-14`（Apple Silicon），x64 用 `macos-13`（Intel）。
+- runner：两种架构都在 `macos-14`（Apple Silicon）上构建；x64 为交叉编译（electron-builder `--x64`）——`macos-13`（Intel）runner 产能枯竭会无限等待（Apple 停产 Intel Mac 后 GitHub 的 x64 macOS 机群长期排队）。
 - CI 在 workspace 外的临时副本里执行 `npm ci` + electron-builder：`desktop/` 虽是 npm 独立安装，electron-builder 仍会向上探测到仓库根的 pnpm workspace 而改用 pnpm 收集器；副本构建可避开（详见工作流文件头注释）。
 - 产物未签名、未公证（`sign: false`/`notarize: false`），对外分发仍需上文「打包 .app / .dmg」的签名 + 公证步骤。
 - 桌面端专属 push 与 `desktop-v*` tag push 都不会触发仓库的 e2e 真实 API 套件（`e2e.yml` 对 `desktop/**` 设了 `paths-ignore`，且 tag ref 不匹配其 branches 过滤器）。

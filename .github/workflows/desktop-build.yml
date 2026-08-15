@@ -48,9 +48,14 @@ jobs:
           - arch: arm64
             runner: macos-14
             script: dist:mac:arm64
+          # x64 is cross-compiled on the arm64 runner (electron-builder
+          # --x64): Intel macOS runners (macos-13) are in chronic capacity
+          # shortage since Apple ended Intel Macs and often sit an unbounded
+          # time in "Waiting for a runner". The shell has no native node
+          # modules (npmRebuild: false), so the cross-build is safe.
           - arch: x64
-            runner: macos-13
-            script: dist:mac
+            runner: macos-14
+            script: dist:mac:x64
     steps:
       - uses: actions/checkout@v6
 
