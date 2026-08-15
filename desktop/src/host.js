@@ -45,6 +45,7 @@ function isRepoRoot(dir) {
  */
 export function findRepoRoot(start) {
   let dir = start
+  if (dir === undefined) return undefined
   while (dir !== dirname(dir)) {
     if (isRepoRoot(dir)) return dir
     dir = dirname(dir)

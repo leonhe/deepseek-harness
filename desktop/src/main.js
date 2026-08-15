@@ -71,22 +71,20 @@ if (!gotLock) {
     if (process.platform === 'darwin' && !SMOKE && existsSync(dockIcon)) {
       app.dock.setIcon(dockIcon)
     }
-    let nodeBin
     try {
-      nodeBin = resolveHostNode()
-    } catch (error) {
-      fail('host node resolution failed: ' + error.message)
-      return
-    }
-    console.log('[shell] spawning host: ' + hostCommand(nodeBin).join(' '))
-    const started = startHost(nodeBin, (line) => console.log('[host] ' + line))
-    child = started.child
-    child.on('exit', (code, signal) => {
-      if (quitting || windowClosed) return
-      console.error('[shell] host exited unexpectedly (code=' + code + ' signal=' + signal + ')')
-      fail('host exited unexpectedly (code=' + code + ' signal=' + signal + '); the app will close')
-    })
-    try {
+      const nodeBin = resolveHostNode()
+      // hostCommand validates the host entry and throws (e.g. source host
+      // missing for a packaged shell whose bundle cannot reach the checkout)
+      // — everything below must surface through fail(), never as an uncaught
+      // async rejection that leaves a windowless app in the Dock.
+      console.log('[shell] spawning host: ' + hostCommand(nodeBin).join(' '))
+      const started = startHost(nodeBin, (line) => console.log('[host] ' + line))
+      child = started.child
+      child.on('exit', (code, signal) => {
+        if (quitting || windowClosed) return
+        console.error('[shell] host exited unexpectedly (code=' + code + ' signal=' + signal + ')')
+        fail('host exited unexpectedly (code=' + code + ' signal=' + signal + '); the app will close')
+      })
       const url = await started.url
       console.log('[shell] host ready at ' + url)
       if (SMOKE) {
