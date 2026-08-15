@@ -26,6 +26,12 @@ const SMOKE = process.env.DSH_DESKTOP_SMOKE === '1'
 /** The served frontend origin: loopback with an OS-assigned port. */
 const HOST_ORIGIN = /^https?:\/\/127\.0\.0\.1:\d+/
 
+/** Hides the web UI scrollbars inside the desktop window (Chromium + Firefox syntaxes). */
+const HIDE_SCROLLBARS_CSS = [
+  '::-webkit-scrollbar { display: none !important; }',
+  '* { scrollbar-width: none !important; }',
+].join('\n')
+
 let child = undefined
 let quitting = false
 let windowClosed = false
@@ -46,6 +52,11 @@ function createWindow(url) {
   })
   win.once('ready-to-show', () => win.show())
   win.loadURL(url)
+  // Desktop-only touch: hide the web UI's styled scrollbars (the Web version
+  // keeps its scrollbar.css look). Re-inserted on every document load.
+  win.webContents.on('did-finish-load', () => {
+    void win.webContents.insertCSS(HIDE_SCROLLBARS_CSS)
+  })
   win.webContents.setWindowOpenHandler(({ url: target }) => {
     if (HOST_ORIGIN.test(target)) return { action: 'allow' } // same-host popups (e.g. pin-browse)
     if (/^https?:/.test(target)) void shell.openExternal(target)
