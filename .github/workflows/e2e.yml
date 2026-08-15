@@ -31,6 +31,12 @@ on:
   workflow_dispatch:
   push:
     branches: [main, master]
+    # desktop/ is the workspace-external dsh-desktop-poc shell (npm-installed,
+    # outside pnpm-workspace.yaml); its changes cannot affect the harness, so
+    # desktop-only pushes skip the real-API suite instead of hard-failing the
+    # DEEPSEEK_API_KEY_EXTERNAL preflight. Mixed pushes, PRs, and the nightly
+    # schedule still run it.
+    paths-ignore: ['desktop/**']
   pull_request:
   schedule:
     # 00:17 UTC nightly = 08:17 Asia/Shanghai — off the top-of-hour cron stampede.
