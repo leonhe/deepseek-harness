@@ -10,7 +10,10 @@
     "smoke": "DSH_DESKTOP_SMOKE=1 electron .",
     "dist:mac": "electron-builder --mac",
     "dist:mac:arm64": "electron-builder --mac --arm64",
-    "dist:mac:x64": "electron-builder --mac --x64"
+    "dist:mac:x64": "electron-builder --mac --x64",
+    "predist:mac": "node scripts/bundle-host.mjs",
+    "predist:mac:arm64": "node scripts/bundle-host.mjs",
+    "predist:mac:x64": "node scripts/bundle-host.mjs"
   },
   "devDependencies": {
     "electron": "^42.2.0",

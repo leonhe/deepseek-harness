@@ -10,6 +10,16 @@ directories:
 files:
   - src/**/*
   - package.json
+# The bundled harness runtime (built via `pnpm run build` + bundle-host.mjs):
+# apps/cli/lib, apps/web/dist, packages lib outputs, and the pnpm node_modules
+# tree. ARM-only: the runtime carries per-arch native deps (node-pty, sharp),
+# so the x64 job skips bundling and the shell falls back to a nearby checkout.
+extraResources:
+  # from stage (not stage/runtime): electron-builder's copy filter drops a
+  # root-level node_modules of the copied tree, and the runtime's dependencies
+  # live exactly there; one level up keeps them under runtime/node_modules.
+  # No `to`: the stage tree (only runtime/ inside) expands into Resources/.
+  - from: stage
 npmRebuild: false
 mac:
   # App icon: web favicon mark (apps/web/public/favicon.svg), synced per

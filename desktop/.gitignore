@@ -3,4 +3,5 @@ dist/
 .electron-cache/
 npm-cache/
 .smoke-home/
+stage/
 Singleton*

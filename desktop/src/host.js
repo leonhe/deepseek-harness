@@ -20,11 +20,16 @@ const PACKAGED = import.meta.url.includes('.asar/')
  * marker, landing on the bundle's Resources directory when packed. */
 const MODULE_ANCHOR = fileURLToPath(new URL('../../', import.meta.url))
 
+/** The bundle's Contents/Resources directory (the module anchor when packed). */
+function bundleResourcesDir() {
+  return MODULE_ANCHOR.replace(/\/+$/, '')
+}
+
 /** Directory containing the app bundle: the Resources dir above app.asar,
  * three dirname steps down from the enclosing .app. Undefined when the asar
  * marker is absent (non-standard layout; falls back to MODULE_ANCHOR). */
 function bundleContainerDir() {
-  const resources = MODULE_ANCHOR.replace(/\/+$/, '')
+  const resources = bundleResourcesDir()
   if (!existsSync(join(resources, 'app.asar'))) return undefined
   let dir = resources
   for (let i = 0; i < 3; i++) dir = dirname(dir)
@@ -53,9 +58,16 @@ export function findRepoRoot(start) {
   return undefined
 }
 
-export const REPO_ROOT = PACKAGED
-  ? findRepoRoot(bundleContainerDir()) ?? bundleContainerDir() ?? MODULE_ANCHOR
-  : MODULE_ANCHOR
+const BUNDLED_RUNTIME = join(bundleResourcesDir(), 'runtime')
+const RUNTIME_FILES = ['apps', 'cli', 'lib', 'bin.js']
+/** True when the shell ships the bundled runtime (desktop/scripts/bundle-host.mjs) containing the built host entry. */
+export const RUNTIME_PRESENT = PACKAGED && existsSync(join(BUNDLED_RUNTIME, ...RUNTIME_FILES))
+
+export const REPO_ROOT = RUNTIME_PRESENT
+  ? BUNDLED_RUNTIME
+  : (PACKAGED
+    ? findRepoRoot(bundleContainerDir()) ?? bundleContainerDir() ?? MODULE_ANCHOR
+    : MODULE_ANCHOR)
 export const HOST_ENTRY_SOURCE = join(REPO_ROOT, 'apps', 'cli', 'src', 'bin.ts')
 export const HOST_ENTRY_BUILT = join(REPO_ROOT, 'apps', 'cli', 'lib', 'bin.js')
 export const HOST_TIMEOUT_MS = 90_000
@@ -144,7 +156,9 @@ export function resolveHostNode() {
 
 /** Host argv: source-launch (tsx, like `pnpm dsh`) or built lib/bin.js. */
 export function hostCommand(nodeBin) {
-  const built = process.env.DSH_DESKTOP_HOST_MODE === 'built'
+  // The bundled runtime has no tsx — a packaged shell with runtime always
+  // runs the built entry.
+  const built = RUNTIME_PRESENT || process.env.DSH_DESKTOP_HOST_MODE === 'built'
   const entry = built ? HOST_ENTRY_BUILT : HOST_ENTRY_SOURCE
   if (!existsSync(entry)) {
     const hint = PACKAGED

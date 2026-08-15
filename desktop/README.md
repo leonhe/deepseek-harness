@@ -50,15 +50,16 @@ npm run smoke          # 无窗口冒烟：拉起宿主 → 打印 DSH_DESKTOP_S
 ## 打包 .app / .dmg
 
 ```sh
-npm run dist:mac          # 当前架构
+pnpm run build            # 先构建 harness（apps/cli/lib、packages lib、apps/web/dist）
+cd desktop
+npm run dist:mac          # 当前架构（predist 自动执行 scripts/bundle-host.mjs 打包运行时）
 npm run dist:mac:arm64    # Apple Silicon
 ```
 
-产物在 `desktop/dist/`（`DeepSeek Harness Desktop.app` + .dmg/.zip）。当前配置仅打包壳本身（`sign: false`、`notarize: false`）——本地跑没问题；打包壳不含宿主，运行时从 .app 所在目录向上查找仓库 checkout（`apps/cli/src/bin.ts`），把 .app 放在仓库根或 `desktop/dist/` 内即可，拷贝到别处会报 source host missing。对外分发需要：
+产物在 `desktop/dist/`（`DeepSeek Harness Desktop.app` + .dmg/.zip）。arm64 产物**内置宿主运行时**（`Contents/Resources/runtime`，约 800MB：构建产物 + pnpm node_modules，通过 `extraResources` 打入、`bundle-host.mjs` 用 `DSH_BUNDLE_PRUNE=0` 可跳过 dev 依赖修剪）——装到任何位置（含 /Applications）都能独立运行；首次启动会自动在 `$DSH_HOME/profiles/web` 初始化 web profile（app-boot 的 `PROFILE_TEMPLATES`）。宿主 Node 优先取 Electron 内嵌版本（`ELECTRON_RUN_AS_NODE`，42 系列为 v24、满足 engines），无需系统安装 Node。对外分发需要：
 
 1. **签名 + 公证**（Gatekeeper）：Apple Developer ID 证书 `CSC_LINK`/`CSC_KEY_PASSWORD`，`notarize: true` + `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID`（entitlements 已含 hardened runtime 所需 JIT 项）。
-2. **宿主入包**：正式包不能依赖仓库 checkout。把宿主做成内置资源：打包 Node 运行时（或 Node SEA / `bun build --compile` 单文件），`apps/cli/lib`、`config`，以及 `apps/web/dist`（`pnpm run build:web` 产物）放 `Contents/Resources`，壳改为从资源目录解析入口与 dist。
-3. 双架构：arm64 + x64（`--universal` 或分别出包）。
+2. **x64 暂不含运行时**：运行时携带按架构编译的原生依赖（node-pty、sharp 的 darwin-arm64 绑定），而 x64 版是在 arm64 runner 上交叉编译的，无法附带正确架构的运行时——x64 .app 仍回退「从所在位置向上查找仓库 checkout」的旧行为，需把 .app 放在仓库根或 `desktop/dist/` 内使用。
 
 ## 自动打包（GitHub Actions）
 
@@ -82,7 +83,7 @@ git tag desktop-v0.1.0 && git push origin desktop-v0.1.0
 说明：
 
 - runner：两种架构都在 `macos-14`（Apple Silicon）上构建；x64 为交叉编译（electron-builder `--x64`）——`macos-13`（Intel）runner 产能枯竭会无限等待（Apple 停产 Intel Mac 后 GitHub 的 x64 macOS 机群长期排队）。
-- CI 在 workspace 外的临时副本里执行 `npm ci` + electron-builder：`desktop/` 虽是 npm 独立安装，electron-builder 仍会向上探测到仓库根的 pnpm workspace 而改用 pnpm 收集器；副本构建可避开（详见工作流文件头注释）。
+- CI 先 `pnpm install --frozen-lockfile` + `pnpm run build` 产出宿主构建物，再 `node desktop/scripts/bundle-host.mjs` 打包运行时（arm64 作业），随后在 workspace 外的临时副本里执行 `npm ci` + electron-builder：`desktop/` 虽是 npm 独立安装，electron-builder 仍会向上探测到仓库根的 pnpm workspace 而改用 pnpm 收集器；副本构建可避开（详见工作流文件头注释）。
 - 产物未签名、未公证（`sign: false`/`notarize: false`），对外分发仍需上文「打包 .app / .dmg」的签名 + 公证步骤。
 - 桌面端专属 push 与 `desktop-v*` tag push 都不会触发仓库的 e2e 真实 API 套件（`e2e.yml` 对 `desktop/**` 设了 `paths-ignore`，且 tag ref 不匹配其 branches 过滤器）。
 
@@ -94,6 +95,6 @@ favicon 更新后的再生成流程：把新 path 同步进 `build/icon.svg` 与
 ## 已知限制与后续路线
 
 - **这是路线 A（临时 HTTP 形态）**。仓库设计的第一等形态在 `packages/host/webserver/src/index.ts` 注释里：Electron 加载 dist over `file://`、fetch 走 IPC 桥——那需要 client connection 层加 IPC transport 与新的 origin 信任策略，目前仓库没有实现，属于正式产品改造（工作量大）。
-- 宿主以「仓库内代码 + Node 子进程」方式启动；node 解析顺序：`DSH_DESKTOP_NODE` → PATH `node` → 常见安装位置（homebrew/nvm/volta/mise/asdf/fnm）→ 打包壳的 Electron 内嵌 Node（`ELECTRON_RUN_AS_NODE`，42 系列为 v24、满足 engines）。Finder/Dock 启动的 .app PATH 不含 homebrew，靠后两项兜底。
+- 宿主以「内置运行时（`Contents/Resources/runtime`，仅 arm64 产物）或仓库 checkout + Node 子进程」方式启动；node 解析顺序：`DSH_DESKTOP_NODE` → PATH `node` → 常见安装位置（homebrew/nvm/volta/mise/asdf/fnm）→ 打包壳的 Electron 内嵌 Node（`ELECTRON_RUN_AS_NODE`，42 系列为 v24、满足 engines）。Finder/Dock 启动的 .app PATH 不含 homebrew，靠后两项兜底。
 - 单实例锁只做到「第二个实例退出」，未聚焦已有窗口。
 - 若要把壳正式并入仓库（`apps/desktop`），需按 `scripts/check-workspace-constraints.ts` 的门禁补齐：release member 字段（public/publishConfig/repository/files 策略）并给 checker 注册 files 策略；写包 README 与 invariants。POC 阶段刻意放在 workspace 之外以避免这些改动。

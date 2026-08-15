@@ -13,6 +13,12 @@ name: Build macOS desktop client
 # desktop/README.md). A temp-dir copy escapes the detection and uses the npm
 # collector that matches the install. Verified against electron-builder 26.
 #
+# The arm64 job additionally bundles the built harness runtime into the app
+# (pnpm install + pnpm run build + desktop/scripts/bundle-host.mjs, embedded
+# as Contents/Resources/runtime) so the app runs standalone from anywhere.
+# The x64 cross-build skips bundling: the runtime carries per-arch native
+# deps (node-pty, sharp), so an x64 shell falls back to a nearby checkout.
+#
 # Artifacts are unsigned and unnotarized (sign: false / notarize: false in
 # electron-builder.yml); distributing them outside the repo needs signing +
 # notarization per desktop/README.md (打包 .app / .dmg).
@@ -48,6 +54,7 @@ jobs:
           - arch: arm64
             runner: macos-14
             script: dist:mac:arm64
+            bundle: true
           # x64 is cross-compiled on the arm64 runner (electron-builder
           # --x64): Intel macOS runners (macos-13) are in chronic capacity
           # shortage since Apple ended Intel Macs and often sit an unbounded
@@ -64,6 +71,19 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: desktop/package-lock.json
+
+      - uses: pnpm/action-setup@v4
+        if: matrix.bundle
+
+      - name: Install and build the harness (bundled-runtime inputs)
+        if: matrix.bundle
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+
+      - name: Bundle the host runtime into desktop/stage
+        if: matrix.bundle
+        run: node desktop/scripts/bundle-host.mjs
 
       - name: Build in a workspace-free copy
         run: |
