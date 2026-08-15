@@ -1,0 +1,30 @@
+# electron-builder config for the POC shell. The packaged app is only the
+# shell: the host entry, the harness packages, and the web dist remain in the
+# repository checkout and are spawned from there (source mode). A production
+# build must bundle a Node runtime (or a SEA/Bun-compiled host) plus the built
+# lib and dist inside the app; see README.md.
+appId: ai.deepseek.harness.desktop
+productName: DeepSeek Harness Desktop
+directories:
+  output: dist
+files:
+  - src/**/*
+  - package.json
+npmRebuild: false
+mac:
+  # App icon: web favicon mark (apps/web/public/favicon.svg), synced per
+  # README.md "图标" - regenerating build/icon.icns is enough after favicon changes.
+  icon: build/icon.icns
+  target:
+    - dmg
+    - zip
+  category: public.app-category.developer-tools
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.inherit.plist
+  # Distribution needs Apple notarization: set notarize: true (or a
+  # { teamId } object) and provide APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD /
+  # APPLE_TEAM_ID env vars; export CSC_LINK + CSC_KEY_PASSWORD for signing.
+  notarize: false
+dmg:
+  sign: false

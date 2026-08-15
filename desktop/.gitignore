@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.electron-cache/
+npm-cache/
+.smoke-home/
+Singleton*
