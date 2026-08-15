@@ -60,8 +60,33 @@ npm run dist:mac:arm64    # Apple Silicon
 2. **宿主入包**：正式包不能依赖仓库 checkout。把宿主做成内置资源：打包 Node 运行时（或 Node SEA / `bun build --compile` 单文件），`apps/cli/lib`、`config`，以及 `apps/web/dist`（`pnpm run build:web` 产物）放 `Contents/Resources`，壳改为从资源目录解析入口与 dist。
 3. 双架构：arm64 + x64（`--universal` 或分别出包）。
 
-## 图标
+## 自动打包（GitHub Actions）
 
+`.github/workflows/desktop-build.yml` 负责 CI 自动打包，触发方式：
+
+| 触发 | 行为 |
+| --- | --- |
+| push `master`（改动 `desktop/**`） | arm64 + x64 双架构打包，产物上传为 Actions artifacts |
+| pull_request（改动 `desktop/**`） | 验证构建，不发布产物 |
+| 手动 `workflow_dispatch` | 随时重打包 |
+| push tag `desktop-v*` | 打包并挂载到对应 GitHub Release 页面 |
+
+打一个正式版本并发布：
+
+```sh
+git tag desktop-v0.1.0 && git push origin desktop-v0.1.0
+```
+
+运行结束后 Release 页（`github.com/<owner>/deepseek-harness/releases/tag/desktop-v0.1.0`）包含 arm64 / x64 两个架构的 .dmg 与 .zip（命名形如 `DeepSeek Harness Desktop-0.1.0-arm64-mac.dmg`）。
+
+说明：
+
+- runner 映射：arm64 用 `macos-14`（Apple Silicon），x64 用 `macos-13`（Intel）。
+- CI 在 workspace 外的临时副本里执行 `npm ci` + electron-builder：`desktop/` 虽是 npm 独立安装，electron-builder 仍会向上探测到仓库根的 pnpm workspace 而改用 pnpm 收集器；副本构建可避开（详见工作流文件头注释）。
+- 产物未签名、未公证（`sign: false`/`notarize: false`），对外分发仍需上文「打包 .app / .dmg」的签名 + 公证步骤。
+- 桌面端专属 push 与 `desktop-v*` tag push 都不会触发仓库的 e2e 真实 API 套件（`e2e.yml` 对 `desktop/**` 设了 `paths-ignore`，且 tag ref 不匹配其 branches 过滤器）。
+
+## 图标
 桌面端与 Web 版共用同一图标（鲸鱼图形）：`build/icon.svg` 是 `apps/web/public/favicon.svg` 的副本（同步源），`build/icon.png`（1024²，白底圆角 + 居中标，圆角 rx=229 为 macOS 图标标准比例、四角透明）由 `build/icon-master.svg` 渲染合成，`build/icon.icns` 供打包（`electron-builder.yml` 的 `mac.icon`）与开发模式 Dock 图标（`main.js` 的 `app.dock.setIcon`，仅未打包运行且存在 `build/icon.png` 时生效）使用。
 
 favicon 更新后的再生成流程：把新 path 同步进 `build/icon.svg` 与 `build/icon-master.svg` → 用 sharp（仓库 pnpm store 自带 `sharp@0.35.3`）以 `density: 192` 渲染并用 lanczos3 降到 1024² 出 `icon.png` → `sips -z` 铺满 10 档 `icon.iconset`（16/32/64/128/256/512/1024）→ `iconutil -c icns icon.iconset -o build/icon.icns`。
