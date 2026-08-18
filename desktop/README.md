@@ -56,7 +56,7 @@ npm run dist:mac          # 当前架构（predist 自动执行 scripts/bundle-h
 npm run dist:mac:arm64    # Apple Silicon
 ```
 
-产物在 `desktop/dist/`（`DeepSeek Harness Desktop.app` + .dmg/.zip）。arm64 产物**内置宿主运行时**（`Contents/Resources/runtime`，约 800MB：构建产物 + pnpm node_modules，通过 `extraResources` 打入、`bundle-host.mjs` 用 `DSH_BUNDLE_PRUNE=0` 可跳过 dev 依赖修剪）——装到任何位置（含 /Applications）都能独立运行；首次启动会自动在 `$DSH_HOME/profiles/web` 初始化 web profile（app-boot 的 `PROFILE_TEMPLATES`）。宿主 Node 优先取 Electron 内嵌版本（`ELECTRON_RUN_AS_NODE`，42 系列为 v24、满足 engines），无需系统安装 Node。对外分发需要：
+产物在 `desktop/dist/`（`DeepSeek Harness Desktop.app` + .dmg/.zip）。arm64 产物**内置宿主运行时**（`Contents/Resources/runtime`，磁盘约 620MB：构建产物 + pnpm node_modules，`afterPack` 钩子打入、`bundle-host.mjs` 用 `DSH_BUNDLE_PRUNE=0` 可跳过依赖修剪；分发产物 .dmg/.zip 自带压缩，运行时内容再压约 78%）——装到任何位置（含 /Applications）都能独立运行；首次启动会自动在 `$DSH_HOME/profiles/web` 初始化 web profile（app-boot 的 `PROFILE_TEMPLATES`）。宿主 Node 优先取 Electron 内嵌版本（`ELECTRON_RUN_AS_NODE`，42 系列为 v24、满足 engines），无需系统安装 Node。对外分发需要：
 
 1. **签名 + 公证**（Gatekeeper）：Apple Developer ID 证书 `CSC_LINK`/`CSC_KEY_PASSWORD`，`notarize: true` + `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID`（entitlements 已含 hardened runtime 所需 JIT 项）。
 2. **x64 暂不含运行时**：运行时携带按架构编译的原生依赖（node-pty、sharp 的 darwin-arm64 绑定），而 x64 版是在 arm64 runner 上交叉编译的，无法附带正确架构的运行时——x64 .app 仍回退「从所在位置向上查找仓库 checkout」的旧行为，需把 .app 放在仓库根或 `desktop/dist/` 内使用。

@@ -28,7 +28,8 @@ const PRUNE = process.env.DSH_BUNDLE_PRUNE !== '0'
 const DEV_ONLY_PREFIXES = [
   '@oxlint', '@rolldown', '@biomejs', '@dprint', '@eslint', '@testing-library',
   '@types/', '@vitest', '@vitejs', '@mermaid-js', '@openai+codex',
-  '@anthropic-ai+claude-agent-sdk', '@playwright',
+  '@anthropic-ai+claude-agent-sdk', '@playwright', '@mistralai+mistralai',
+  '@google+genai', 'esbuild', '@esbuild',
   'vite', 'vitest', 'eslint', 'oxlint', 'prettier', 'playwright', 'lefthook',
   'knip', 'publint', 'tsx', 'jsdom', 'happy-dom', 'rollup',
   'mermaid', 'tsdown', 'rolldown', 'lightningcss', 'sass',
